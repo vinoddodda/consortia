@@ -1,0 +1,168 @@
+Organizations:
+
+    - &shell
+        Name: shell
+        # SkipAsForeign: false
+        ID: shell
+        MSPDir: ./msps/shell/msp
+
+        Policies: &shellPolicies
+            Readers:
+                Type: Signature
+                Rule: "OR('shell.admin','shell.peer','shell.orderer','shell.client')"
+            Writers:
+                Type: Signature
+                Rule: "OR('shell.admin','shell.peer','shell.orderer','shell.client')"
+            Admins:
+                Type: Signature
+                Rule: "OR('shell.admin')"
+            Endorsement:
+                Type: Signature
+                Rule: "OR('shell.admin','shell.peer','shell.orderer')"
+        OrdererEndpoints:
+            - "orderer0.shell.libra.hf:7050"
+
+
+Capabilities:
+    Channel: &ChannelCapabilities
+        V2_0: true        
+    Orderer: &OrdererCapabilities
+        V2_0: true
+    Application: &ApplicationCapabilities
+        V2_0: true
+        
+        
+Channel: &ChannelDefaults
+
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "ANY Admins"
+
+    Capabilities:
+        <<: *ChannelCapabilities
+
+
+Application: &ApplicationDefaults
+    ACLs: &ACLsDefault
+        _lifecycle/CheckCommitReadiness: /Channel/Application/Writers
+        _lifecycle/CommitChaincodeDefinition: /Channel/Application/Writers
+        _lifecycle/QueryChaincodeDefinition: /Channel/Application/Readers
+        _lifecycle/QueryChaincodeDefinitions: /Channel/Application/Readers
+        lscc/ChaincodeExists: /Channel/Application/Readers
+        lscc/GetDeploymentSpec: /Channel/Application/Readers
+        lscc/GetChaincodeData: /Channel/Application/Readers
+        lscc/GetInstantiatedChaincodes: /Channel/Application/Readers
+        qscc/GetChainInfo: /Channel/Application/Readers
+        qscc/GetBlockByNumber: /Channel/Application/Readers
+        qscc/GetBlockByHash: /Channel/Application/Readers
+        qscc/GetTransactionByID: /Channel/Application/Readers
+        qscc/GetBlockByTxID: /Channel/Application/Readers
+        cscc/GetConfigBlock: /Channel/Application/Readers
+        cscc/GetConfigTree: /Channel/Application/Readers
+        cscc/SimulateConfigTreeUpdate: /Channel/Application/Readers
+        peer/Propose: /Channel/Application/Writers
+        peer/ChaincodeToChaincode: /Channel/Application/Readers
+        event/Block: /Channel/Application/Readers
+        event/FilteredBlock: /Channel/Application/Readers
+
+    Policies: &ApplicationDefaultPolicies
+        LifecycleEndorsement:
+            Type: ImplicitMeta
+            Rule: "ANY Endorsement"
+        Endorsement:
+            Type: ImplicitMeta
+            Rule: "ANY Endorsement"
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "ANY Admins"
+
+    Capabilities:
+        <<: *ApplicationCapabilities
+
+    Organizations:
+
+    
+Orderer: &OrdererDefaults
+
+    OrdererType: etcdraft
+    BatchTimeout: 2s
+
+    BatchSize:
+        MaxMessageCount: 500
+        AbsoluteMaxBytes: 10 MB
+        PreferredMaxBytes: 2 MB
+
+    MaxChannels: 0
+
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "ANY Admins"
+        BlockValidation:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+
+    Capabilities:
+        <<: *OrdererCapabilities
+
+    EtcdRaft:
+
+        Options:
+            TickInterval: 500ms
+            ElectionTick: 10
+            HeartbeatTick: 1
+            MaxInflightBlocks: 5
+            SnapshotIntervalSize: 16 MB
+
+        Consenters:
+
+            -   Host: orderer0.shell.libra.hf
+                Port: 7050
+                ClientTLSCert: "./channels/orderer-system-channel/organizations/shell/orderers/orderer0.shell.libra.hf/tls/signcerts/identity.crt"
+                ServerTLSCert: "./channels/orderer-system-channel/organizations/shell/orderers/orderer0.shell.libra.hf/tls/signcerts/identity.crt"
+
+
+
+Profiles:
+
+    orderer-system-channel-profile:
+        <<: *ChannelDefaults
+        Orderer:
+            <<: *OrdererDefaults
+            Organizations:
+                -   *shell
+    
+        Consortiums:
+            libra:
+                Organizations:
+                    -   *shell
+
+    libra-channel-profile:
+        <<: *ChannelDefaults
+        Consortium: libra
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+                -   <<: *shell
+                    AnchorPeers:
+                        -   Host: peer0.shell.libra-channel.libra.hf
+                            Port: 7053
